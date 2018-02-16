@@ -11,7 +11,9 @@
 package main
 
 type user struct {
-	Token string
+	Name   string
+	Mobile string
+	Email  string
 }
 
 type token string
