@@ -55,7 +55,7 @@ func login() {
 	if resp.StatusCode != 200 {
 		log.WithFields(log.Fields{
 			"Phase": "login",
-		}).Fatalf("StatusCode: %s", err)
+		}).Fatalf("StatusCode: %d", resp.StatusCode)
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
