@@ -41,11 +41,60 @@ func main() {
 		panic(err)
 	}
 
+	createUser()
 	login()
 }
 
+func createUser() {
+	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/register",
+		url.Values{
+			"legal":    {"0"},
+			"name":     {"Parham Alvani"},
+			"email":    {"parham.alvani@gmail.com"},
+			"mobile":   {"09124493153"},
+			"password": {"1234567"},
+		})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "register",
+		}).Fatalf("Request: %s", err)
+	}
+
+	if resp.StatusCode != 200 {
+		log.WithFields(log.Fields{
+			"Phase": "resiter",
+		}).Fatalf("StatusCode: %d", resp.StatusCode)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "register",
+		}).Fatalf("Body: %s", err)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "register",
+		}).Fatalf("Body: %s", err)
+	}
+
+	var response struct {
+		Code int
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "register",
+		}).Fatalf("JSON Unmarshal: %s", err)
+	}
+
+	log.WithFields(log.Fields{
+		"Phase": "register",
+	}).Infoln(response)
+}
+
 func login() {
-	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/login", url.Values{"email": {"sepehr.sabour@gmail.com"}, "password": {"1234567"}})
+	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/login", url.Values{"email": {"parham.alvani@gmail.com"}, "password": {"1234567"}})
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "login",
