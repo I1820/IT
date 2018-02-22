@@ -13,10 +13,10 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"net/http"
-	"net/url"
 
+	"github.com/go-resty/resty"
 	"github.com/jinzhu/configor"
 	log "github.com/sirupsen/logrus"
 )
@@ -47,43 +47,31 @@ func main() {
 }
 
 func createUser() {
-	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/register",
-		url.Values{
-			"legal":    {"0"},
-			"name":     {"Parham Alvani"},
-			"email":    {"parham.alvani@yahoo.com"},
-			"mobile":   {"09390909540"},
-			"password": {"1234567"},
-		})
+	resp, err := resty.R().
+		SetFormData(map[string]string{
+			"legal":    "0",
+			"name":     "Parham Alvani",
+			"email":    "parham.alvani@yahoo.com",
+			"mobile":   "09390909540",
+			"password": "1234567",
+		}).
+		Post(Config.BackBack.BaseURL + Config.BackBack.Version + "/register")
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "register",
 		}).Fatalf("Request: %s", err)
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode() != 200 {
 		log.WithFields(log.Fields{
 			"Phase": "resiter",
-		}).Fatalf("StatusCode: %d", resp.StatusCode)
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Phase": "register",
-		}).Fatalf("Body: %s", err)
-	}
-
-	if err := resp.Body.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Phase": "register",
-		}).Fatalf("Body: %s", err)
+		}).Fatalf("StatusCode: %d", resp.StatusCode())
 	}
 
 	var response struct {
 		Code int
 	}
-	if err := json.Unmarshal(data, &response); err != nil {
+	if err := json.Unmarshal(resp.Body(), &response); err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "register",
 		}).Fatalf("JSON Unmarshal: %s", err)
@@ -95,30 +83,22 @@ func createUser() {
 }
 
 func login() {
-	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/login", url.Values{"email": {"parham.alvani@yahoo.com"}, "password": {"1234567"}})
+	resp, err := resty.R().
+		SetFormData(map[string]string{
+			"email":    "parham.alvani@yahoo.com",
+			"password": "1234567",
+		}).
+		Post(Config.BackBack.BaseURL + Config.BackBack.Version + "/login")
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "login",
 		}).Fatalf("Request: %s", err)
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode() != 200 {
 		log.WithFields(log.Fields{
 			"Phase": "login",
-		}).Fatalf("StatusCode: %d", resp.StatusCode)
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Phase": "login",
-		}).Fatalf("Body: %s", err)
-	}
-
-	if err := resp.Body.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Phase": "login",
-		}).Fatalf("Body: %s", err)
+		}).Fatalf("StatusCode: %d", resp.StatusCode())
 	}
 
 	var response struct {
@@ -128,7 +108,7 @@ func login() {
 			Token token
 		}
 	}
-	if err := json.Unmarshal(data, &response); err != nil {
+	if err := json.Unmarshal(resp.Body(), &response); err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "login",
 		}).Fatalf("JSON Unmarshal: %s", err)
@@ -142,36 +122,29 @@ func login() {
 }
 
 func createProject() {
-	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/project", url.Values{"name": {"Me"}, "description": {"This is me"}})
+	resp, err := resty.R().
+		SetHeader("Authorization", fmt.Sprintf("Bearer %s", jwtToken)).
+		SetFormData(map[string]string{
+			"name":        "Me",
+			"description": "This is me",
+		}).
+		Post(Config.BackBack.BaseURL + Config.BackBack.Version + "/project")
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "create project",
 		}).Fatalf("Request: %s", err)
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode() != 200 {
 		log.WithFields(log.Fields{
 			"Phase": "create project",
-		}).Fatalf("StatusCode: %d", resp.StatusCode)
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Phase": "create project",
-		}).Fatalf("Body: %s", err)
-	}
-
-	if err := resp.Body.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Phase": "create project",
-		}).Fatalf("Body: %s", err)
+		}).Fatalf("StatusCode: %d", resp.StatusCode())
 	}
 
 	var response struct {
 		Code int
 	}
-	if err := json.Unmarshal(data, &response); err != nil {
+	if err := json.Unmarshal(resp.Body(), &response); err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "create project",
 		}).Fatalf("JSON Unmarshal: %s", err)
