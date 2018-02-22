@@ -24,7 +24,7 @@ import (
 // Config represents main configuration
 var Config = struct {
 	BackBack struct {
-		BaseURL string `default:"https://backback.ceit.aut.ac.ir/api/" env:"backback_base_url"`
+		BaseURL string `default:"http://backback.ceit.aut.ac.ir/api/" env:"backback_base_url"`
 		Version string `default:"v1" env:"backback_version"`
 	}
 }{}
@@ -43,6 +43,7 @@ func main() {
 
 	createUser()
 	login()
+	createProject()
 }
 
 func createUser() {
@@ -51,7 +52,7 @@ func createUser() {
 			"legal":    {"0"},
 			"name":     {"Parham Alvani"},
 			"email":    {"parham.alvani@gmail.com"},
-			"mobile":   {"09124493153"},
+			"mobile":   {"09390909540"},
 			"password": {"1234567"},
 		})
 	if err != nil {
@@ -141,6 +142,44 @@ func login() {
 }
 
 func createProject() {
+	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/project", url.Values{"name": {"Me"}, "description": {"This is me"}})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "create project",
+		}).Fatalf("Request: %s", err)
+	}
+
+	if resp.StatusCode != 200 {
+		log.WithFields(log.Fields{
+			"Phase": "create project",
+		}).Fatalf("StatusCode: %d", resp.StatusCode)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "create project",
+		}).Fatalf("Body: %s", err)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "create project",
+		}).Fatalf("Body: %s", err)
+	}
+
+	var response struct {
+		Code int
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "create project",
+		}).Fatalf("JSON Unmarshal: %s", err)
+	}
+
+	log.WithFields(log.Fields{
+		"Phase": "create project",
+	}).Infoln(response)
 }
 
 func createThingProfile() {
