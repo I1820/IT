@@ -51,7 +51,7 @@ func createUser() {
 		url.Values{
 			"legal":    {"0"},
 			"name":     {"Parham Alvani"},
-			"email":    {"parham.alvani@gmail.com"},
+			"email":    {"parham.alvani@yahoo.com"},
 			"mobile":   {"09390909540"},
 			"password": {"1234567"},
 		})
@@ -95,7 +95,7 @@ func createUser() {
 }
 
 func login() {
-	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/login", url.Values{"email": {"parham.alvani@gmail.com"}, "password": {"1234567"}})
+	resp, err := http.PostForm(Config.BackBack.BaseURL+Config.BackBack.Version+"/login", url.Values{"email": {"parham.alvani@yahoo.com"}, "password": {"1234567"}})
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "login",
