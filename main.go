@@ -51,9 +51,9 @@ func createUser() {
 		SetFormData(map[string]string{
 			"legal":    "0",
 			"name":     "Parham Alvani",
-			"email":    "parham.alvani@yahoo.com",
+			"email":    "parham.alvani@gmail.com",
 			"mobile":   "09390909540",
-			"password": "1234567",
+			"password": "123123",
 		}).
 		Post(Config.BackBack.BaseURL + Config.BackBack.Version + "/register")
 	if err != nil {
@@ -85,8 +85,8 @@ func createUser() {
 func login() {
 	resp, err := resty.R().
 		SetFormData(map[string]string{
-			"email":    "parham.alvani@yahoo.com",
-			"password": "1234567",
+			"email":    "parham.alvani@gmail.com",
+			"password": "123123",
 		}).
 		Post(Config.BackBack.BaseURL + Config.BackBack.Version + "/login")
 	if err != nil {
