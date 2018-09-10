@@ -15,6 +15,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/go-resty/resty"
 	"github.com/jinzhu/configor"
@@ -24,13 +26,19 @@ import (
 // Config represents main configuration
 var Config = struct {
 	BackBack struct {
-		BaseURL string `default:"http://backback.ceit.aut.ac.ir/api/" env:"backback_base_url"`
+		BaseURL string `default:"http://185.116.162.237:7070/api/" env:"backback_base_url"`
 		Version string `default:"v1" env:"backback_version"`
 	}
 }{}
 
 // JWT Token
 var jwtToken token
+
+var projectID = "5b96bdf969ccb0000a1bb24a"
+var thingID = "0000000000000088"
+
+var concurrentRequests = 500
+var pipelineRequests = 1
 
 func main() {
 	// Disable https certificate validation
@@ -41,9 +49,47 @@ func main() {
 		panic(err)
 	}
 
-	createUser()
+	// createUser()
 	login()
-	createProject()
+	// createProject()
+
+	failed := 0
+	success := 0
+	var responseTime float64
+	var responseTimeMax float64
+	responseTimeStream := make(chan float64, concurrentRequests*pipelineRequests)
+	var wg sync.WaitGroup
+	for i := 0; i < concurrentRequests; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			for i := 0; i < pipelineRequests; i++ {
+				before := time.Now()
+				if err := fetchData(); err != nil {
+					failed++
+					continue
+				}
+				success++
+				interval := time.Now().Sub(before)
+				fmt.Printf("%d took %s on loop %d\n", index, interval, i)
+				responseTimeStream <- interval.Seconds()
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(responseTimeStream)
+	fmt.Println("Fetch data finished")
+
+	for t := range responseTimeStream {
+		responseTime += t
+		if t > responseTimeMax {
+			responseTimeMax = t
+		}
+	}
+
+	fmt.Printf("Total: %d, Failed: %d, Success: %d\nRatio: %g%%\n", success+failed, failed, success, float64(failed*100)/float64(success+failed))
+	fmt.Printf("Response Time Avg. %gs\n", responseTime/float64(success))
+	fmt.Printf("Response Time Max. %gs\n", responseTimeMax)
 }
 
 func createUser() {
@@ -121,6 +167,46 @@ func login() {
 	jwtToken = response.Result.Token
 }
 
+func fetchData() error {
+	resp, err := resty.R().
+		SetHeader("Authorization", fmt.Sprintf("Bearer %s", jwtToken)).
+		SetFormData(map[string]string{
+			"project_id": projectID,
+			"since":      "0",
+			"thing_ids":  fmt.Sprintf(`{"ids": [%s]}`, thingID),
+		}).
+		Post(Config.BackBack.BaseURL + Config.BackBack.Version + "/things/data")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "fetch data",
+		}).Errorf("Request: %s", err)
+		return err
+	}
+
+	if resp.StatusCode() != 200 {
+		log.WithFields(log.Fields{
+			"Phase": "fetch data",
+		}).Errorf("StatusCode: %d", resp.StatusCode())
+		return fmt.Errorf("StatusCode %d", resp.StatusCode())
+	}
+
+	var response interface{}
+
+	if err := json.Unmarshal(resp.Body(), &response); err != nil {
+		log.WithFields(log.Fields{
+			"Phase": "fetch data",
+		}).Errorf("JSON Unmarshal: %s", err)
+		return err
+	}
+
+	/*
+		log.WithFields(log.Fields{
+			"Phase": "fetch data",
+		}).Infoln(response)
+	*/
+	return nil
+}
+
 func createProject() {
 	resp, err := resty.R().
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", jwtToken)).
@@ -132,13 +218,13 @@ func createProject() {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "create project",
-		}).Fatalf("Request: %s", err)
+		}).Errorf("Request: %s", err)
 	}
 
 	if resp.StatusCode() != 200 {
 		log.WithFields(log.Fields{
 			"Phase": "create project",
-		}).Fatalf("StatusCode: %d", resp.StatusCode())
+		}).Errorf("StatusCode: %d", resp.StatusCode())
 	}
 
 	var response struct {
@@ -147,7 +233,7 @@ func createProject() {
 	if err := json.Unmarshal(resp.Body(), &response); err != nil {
 		log.WithFields(log.Fields{
 			"Phase": "create project",
-		}).Fatalf("JSON Unmarshal: %s", err)
+		}).Errorf("JSON Unmarshal: %s", err)
 	}
 
 	log.WithFields(log.Fields{
