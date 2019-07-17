@@ -11,14 +11,12 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
-	"github.com/go-resty/resty"
+	"github.com/go-resty/resty/v2"
 	"github.com/jinzhu/configor"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,7 +24,7 @@ import (
 // Config represents main configuration
 var Config = struct {
 	BackBack struct {
-		BaseURL string `default:"http://185.116.162.237:7070/api/" env:"backback_base_url"`
+		BaseURL string `default:"http://127.0.0.1:7070/api/" env:"backback_base_url"`
 		Version string `default:"v1" env:"backback_version"`
 	}
 }{}
@@ -40,9 +38,15 @@ var thingID = "0000000000000088"
 var concurrentRequests = 500
 var pipelineRequests = 1
 
+// BackBack is an I1820 sjd-backend client
+type BackBack struct {
+	client *resty.Client
+}
+
 func main() {
-	// Disable https certificate validation
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	bk := BackBack{
+		client: resty.New(),
+	}
 
 	// Load configuration
 	if err := configor.Load(&Config, "config.yml"); err != nil {
@@ -50,7 +54,7 @@ func main() {
 	}
 
 	// createUser()
-	login()
+	bk.login()
 	// createProject()
 
 	failed := 0
@@ -65,7 +69,7 @@ func main() {
 			defer wg.Done()
 			for i := 0; i < pipelineRequests; i++ {
 				before := time.Now()
-				if err := fetchData(); err != nil {
+				if err := bk.fetchData(); err != nil {
 					failed++
 					continue
 				}
@@ -92,8 +96,8 @@ func main() {
 	fmt.Printf("Response Time Max. %gs\n", responseTimeMax)
 }
 
-func createUser() {
-	resp, err := resty.R().
+func (bk BackBack) createUser() {
+	resp, err := bk.client.R().
 		SetFormData(map[string]string{
 			"legal":    "0",
 			"name":     "Parham Alvani",
@@ -128,8 +132,8 @@ func createUser() {
 	}).Infoln(response)
 }
 
-func login() {
-	resp, err := resty.R().
+func (bk BackBack) login() {
+	resp, err := bk.client.R().
 		SetFormData(map[string]string{
 			"email":    "parham.alvani@gmail.com",
 			"password": "123123",
@@ -148,11 +152,11 @@ func login() {
 	}
 
 	var response struct {
-		Code   int
+		Code   int `json:"code"`
 		Result struct {
-			User  user
-			Token token
-		}
+			User        user  `json:"user"`
+			AccessToken token `json:"access_token"`
+		} `json:"result"`
 	}
 	if err := json.Unmarshal(resp.Body(), &response); err != nil {
 		log.WithFields(log.Fields{
@@ -164,11 +168,11 @@ func login() {
 		"Phase": "login",
 	}).Infoln(response)
 
-	jwtToken = response.Result.Token
+	jwtToken = response.Result.AccessToken
 }
 
-func fetchData() error {
-	resp, err := resty.R().
+func (bk BackBack) fetchData() error {
+	resp, err := bk.client.R().
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", jwtToken)).
 		SetFormData(map[string]string{
 			"project_id": projectID,
@@ -199,16 +203,14 @@ func fetchData() error {
 		return err
 	}
 
-	/*
-		log.WithFields(log.Fields{
-			"Phase": "fetch data",
-		}).Infoln(response)
-	*/
+	log.WithFields(log.Fields{
+		"Phase": "fetch data",
+	}).Infoln(response)
 	return nil
 }
 
-func createProject() {
-	resp, err := resty.R().
+func (bk BackBack) createProject() {
+	resp, err := bk.client.R().
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", jwtToken)).
 		SetFormData(map[string]string{
 			"name":        "Me",
